@@ -16,16 +16,20 @@ class BeatDetector {
         this.audioStartTime = 0; // 音声再生開始時間
         this.currentTime = 0; // 現在の再生位置
         
-        // iOS/iPhone検出
+        // デバイス検出
         this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         this.isIPhone = /iPhone/.test(navigator.userAgent);
+        this.isAndroid = /Android/.test(navigator.userAgent);
         
         if (this.isIOS) {
             console.log('🍎 iOS/iPadOS デバイスを検出しました');
         }
         if (this.isIPhone) {
             console.log('📱 iPhone デバイスを検出しました');
+        }
+        if (this.isAndroid) {
+            console.log('🤖 Android デバイスを検出しました');
         }
         this.isPaused = false; // 一時停止状態
         this.pausedTime = 0; // 一時停止した位置
@@ -1597,15 +1601,39 @@ class BeatDetector {
             console.log('🔇 編集中の音楽再生をスキップします（軽量化モード）');
         }
 
-        // ブラウザサポートをチェック（iPhone Safari対応：MP4を優先）
-        const supportedTypes = [
-            'video/mp4;codecs=h264,aac',
-            'video/mp4;codecs=h264',
-            'video/mp4',
-            'video/webm;codecs=vp8',
-            'video/webm;codecs=h264',
-            'video/webm'
-        ];
+        // ブラウザサポートをチェック（iOS/Android対応）
+        let supportedTypes;
+        if (this.isIOS) {
+            // iOS: MP4優先
+            supportedTypes = [
+                'video/mp4;codecs=h264,aac',
+                'video/mp4;codecs=h264',
+                'video/mp4',
+                'video/webm;codecs=vp8',
+                'video/webm;codecs=h264',
+                'video/webm'
+            ];
+        } else if (this.isAndroid) {
+            // Android: WebM優先、MP4もサポート
+            supportedTypes = [
+                'video/webm;codecs=vp9',
+                'video/webm;codecs=vp8',
+                'video/mp4;codecs=h264,aac',
+                'video/mp4;codecs=h264',
+                'video/mp4',
+                'video/webm'
+            ];
+        } else {
+            // デスクトップ: WebM優先
+            supportedTypes = [
+                'video/webm;codecs=vp9',
+                'video/webm;codecs=vp8',
+                'video/webm;codecs=h264',
+                'video/webm',
+                'video/mp4;codecs=h264,aac',
+                'video/mp4'
+            ];
+        }
 
         let mimeType = null;
         for (const type of supportedTypes) {
@@ -2649,10 +2677,58 @@ class BeatDetector {
             currentTime >= telop.startTime && currentTime <= telop.endTime
         );
         
-        // 各テロップを描画
-        activeTelops.forEach(telop => {
-            this.drawSingleTelop(ctx, canvasWidth, canvasHeight, telop);
+        if (activeTelops.length === 0) return;
+        
+        // 複数テロップがある場合は自動配置
+        if (activeTelops.length > 1) {
+            this.drawMultipleTelopsSmart(ctx, canvasWidth, canvasHeight, activeTelops);
+        } else {
+            // 単一テロップの場合は通常描画
+            this.drawSingleTelop(ctx, canvasWidth, canvasHeight, activeTelops[0]);
+        }
+    }
+    
+    drawMultipleTelopsSmart(ctx, canvasWidth, canvasHeight, telops) {
+        // 位置タイプ別にグループ化
+        const groupedTelops = {
+            top: telops.filter(t => t.positionY === 'top'),
+            center: telops.filter(t => t.positionY === 'center'), 
+            bottom: telops.filter(t => t.positionY === 'bottom')
+        };
+        
+        // 各位置グループで配置
+        Object.keys(groupedTelops).forEach(position => {
+            const group = groupedTelops[position];
+            if (group.length === 0) return;
+            
+            // 同じ位置に複数ある場合は間隔を空けて配置
+            group.forEach((telop, index) => {
+                const adjustedTelop = { ...telop };
+                
+                if (group.length > 1) {
+                    // 垂直方向のオフセットを計算
+                    const baseY = this.getBaseYPosition(position, canvasHeight);
+                    const spacing = canvasHeight * 0.08; // 8%間隔
+                    const totalHeight = (group.length - 1) * spacing;
+                    const startY = baseY - totalHeight / 2;
+                    
+                    // Y位置を調整（パーセンテージで指定）
+                    const adjustedY = (startY + index * spacing) / canvasHeight;
+                    adjustedTelop.customY = Math.max(0.05, Math.min(0.95, adjustedY));
+                }
+                
+                this.drawSingleTelop(ctx, canvasWidth, canvasHeight, adjustedTelop);
+            });
         });
+    }
+    
+    getBaseYPosition(position, canvasHeight) {
+        switch (position) {
+            case 'top': return canvasHeight * 0.15;
+            case 'center': return canvasHeight * 0.5;
+            case 'bottom': return canvasHeight * 0.85;
+            default: return canvasHeight * 0.5;
+        }
     }
     
     drawSingleTelop(ctx, canvasWidth, canvasHeight, telop) {
@@ -2687,15 +2763,21 @@ class BeatDetector {
         }
         
         let y;
-        switch (telop.positionY) {
-            case 'top':
-                y = fontSize + canvasHeight * 0.05;
-                break;
-            case 'middle':
-                y = canvasHeight / 2 + fontSize / 3;
-                break;
-            default: // bottom
-                y = canvasHeight - canvasHeight * 0.05;
+        // customY が設定されている場合はそれを使用（複数テロップ配置用）
+        if (telop.customY !== undefined) {
+            y = canvasHeight * telop.customY + fontSize / 3;
+        } else {
+            // 通常の位置指定
+            switch (telop.positionY) {
+                case 'top':
+                    y = fontSize + canvasHeight * 0.05;
+                    break;
+                case 'middle':
+                    y = canvasHeight / 2 + fontSize / 3;
+                    break;
+                default: // bottom
+                    y = canvasHeight - canvasHeight * 0.05;
+            }
         }
         
         // 背景を描画（オプション）
@@ -2778,7 +2860,7 @@ class BeatDetector {
         timeSlider.className = 'time-slider';
         timeSlider.min = 0;
         timeSlider.max = 10; // デフォルト、後でloadedmetadataで更新
-        timeSlider.step = 0.1;
+        timeSlider.step = 0.01;
         timeSlider.value = 0;
         
         // 時間表示
