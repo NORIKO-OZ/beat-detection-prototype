@@ -195,6 +195,12 @@ class BeatDetector {
         if (!this.videoSizeSelect) return { width: 1280, height: 720 }; // デフォルト
         
         const selectedSize = this.videoSizeSelect.value;
+        
+        // 「auto」が選択されている場合は、アップロードされた映像素材から自動検出
+        if (selectedSize === 'auto' && this.videoElements && this.videoElements.length > 0) {
+            return this.detectVideoAspectRatio();
+        }
+        
         const sizeMap = {
             'vertical_hd': { width: 720, height: 1280 },      // 9:16 縦長スマホ
             'square_hd': { width: 720, height: 720 },         // 1:1 正方形
@@ -205,6 +211,81 @@ class BeatDetector {
         };
         
         return sizeMap[selectedSize] || { width: 1280, height: 720 };
+    }
+    
+    detectVideoAspectRatio() {
+        // 最初の映像素材のアスペクト比を基準にする
+        const firstVideo = this.videoElements[0];
+        if (!firstVideo || firstVideo.videoWidth === 0 || firstVideo.videoHeight === 0) {
+            console.log('映像のメタデータが読み込まれていません、デフォルトサイズを使用');
+            return { width: 1280, height: 720 };
+        }
+        
+        const videoWidth = firstVideo.videoWidth;
+        const videoHeight = firstVideo.videoHeight;
+        const aspectRatio = videoWidth / videoHeight;
+        
+        console.log(`📐 映像素材のアスペクト比検出: ${videoWidth}×${videoHeight} (比率: ${aspectRatio.toFixed(2)})`);
+        
+        // アスペクト比に基づいて適切なサイズを決定
+        if (Math.abs(aspectRatio - 1) < 0.1) {
+            // 正方形 (1:1)
+            return { width: 1080, height: 1080 };
+        } else if (aspectRatio < 1) {
+            // 縦長 (9:16など)
+            const targetHeight = 1920;
+            const targetWidth = Math.round(targetHeight * aspectRatio);
+            return { width: targetWidth, height: targetHeight };
+        } else {
+            // 横長 (16:9など)
+            const targetWidth = 1920;
+            const targetHeight = Math.round(targetWidth / aspectRatio);
+            return { width: targetWidth, height: targetHeight };
+        }
+    }
+    
+    updateVideoAspectRatioInfo(video) {
+        if (!video || video.videoWidth === 0 || video.videoHeight === 0) return;
+        
+        const aspectRatio = video.videoWidth / video.videoHeight;
+        let ratioText = '';
+        let orientationText = '';
+        
+        if (Math.abs(aspectRatio - 1) < 0.1) {
+            ratioText = '1:1';
+            orientationText = '正方形';
+        } else if (aspectRatio < 1) {
+            ratioText = '9:16';
+            orientationText = '縦長';
+        } else {
+            ratioText = '16:9';
+            orientationText = '横長';
+        }
+        
+        // 動画サイズ選択の下に情報を表示
+        const videoSizeContainer = document.querySelector('#videoSizeSelect').parentElement;
+        let infoDiv = videoSizeContainer.querySelector('.aspect-ratio-info');
+        
+        if (!infoDiv) {
+            infoDiv = document.createElement('div');
+            infoDiv.className = 'aspect-ratio-info';
+            infoDiv.style.cssText = `
+                margin-top: 0.5rem;
+                padding: 0.5rem;
+                background: var(--accent-bg);
+                border-radius: 0.25rem;
+                font-size: 0.8rem;
+                color: var(--accent-text);
+            `;
+            videoSizeContainer.appendChild(infoDiv);
+        }
+        
+        infoDiv.innerHTML = `
+            📐 <strong>映像素材:</strong> ${video.videoWidth}×${video.videoHeight} (${ratioText}, ${orientationText})<br>
+            💡 「自動」選択時はこのアスペクト比でプレビューされます
+        `;
+        
+        console.log(`📐 映像アスペクト比情報更新: ${video.videoWidth}×${video.videoHeight} (${ratioText})`);
     }
     
     updateVideoSizeOptions() {
@@ -392,6 +473,11 @@ class BeatDetector {
                     timeSlider.max = Math.floor(duration * 10) / 10; // 0.1秒単位
                     timeSlider.value = initialTime;
                     timeDisplay.textContent = `${this.formatTime(initialTime)} / ${this.formatTime(duration)}`;
+                }
+                
+                // 最初の映像の場合、アスペクト比情報を表示
+                if (index === 0) {
+                    this.updateVideoAspectRatioInfo(video);
                 }
             });
             

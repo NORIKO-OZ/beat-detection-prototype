@@ -88,6 +88,14 @@
             }
         }
         
+        /* プレビューキャンバスのレスポンシブ対応 */
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            box-shadow: var(--shadow);
+        }
+        
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--primary-bg);
@@ -723,9 +731,10 @@
                         📱 動画サイズ・フォーマット
                     </label>
                     <select id="videoSizeSelect" style="width: 100%;">
+                        <option value="auto" selected>🔄 自動 (映像素材に合わせる)</option>
                         <option value="vertical_hd">📱 縦型スマホ (720×1280) - TikTok/Stories</option>
                         <option value="square_hd">🟨 正方形 (720×720) - Instagram投稿</option>
-                        <option value="horizontal_hd" selected>🖥️ 横型HD (1280×720) - YouTube</option>
+                        <option value="horizontal_hd">🖥️ 横型HD (1280×720) - YouTube</option>
                         <option value="vertical_fhd">📱 縦型高画質 (1080×1920) - 高品質</option>
                         <option value="square_fhd">🟨 正方形高画質 (1080×1080) - 高品質</option>
                         <option value="horizontal_fhd">🖥️ 横型フルHD (1920×1080) - 高品質</option>
