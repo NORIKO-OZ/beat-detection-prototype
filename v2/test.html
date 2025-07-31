@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>v2 テスト用リンク</title>
+    <style>
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: #0f1419;
+            color: #ffffff;
+            padding: 2rem;
+            text-align: center;
+        }
+        .test-links {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #1a1d29;
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid #333;
+        }
+        .version-link {
+            display: block;
+            padding: 1rem;
+            margin: 1rem 0;
+            background: #64ffda;
+            color: #0f1419;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .version-link:hover {
+            background: #4ecdc4;
+            transform: translateY(-2px);
+        }
+        .version-link.v2 {
+            background: #bb86fc;
+        }
+        .version-link.v2:hover {
+            background: #a374eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-links">
+        <h1>🎵 Beat Detection Prototype</h1>
+        <p>バージョン選択</p>
+        
+        <a href="../index.html" class="version-link">
+            🎵 v1 - 基本版（安定版）<br>
+            <small>現在GitHub Pagesで公開中</small>
+        </a>
+        
+        <a href="./index.html" class="version-link v2">
+            🏢 v2 - ビジネス版（開発中）<br>
+            <small>素材分類機能付き</small>
+        </a>
+        
+        <hr style="margin: 2rem 0; border: none; border-top: 1px solid #333;">
+        
+        <h3>v2の新機能テスト項目</h3>
+        <ul style="text-align: left; font-size: 0.9rem;">
+            <li>✅ 映像素材アップロード時の分類選択</li>
+            <li>✅ フード・スタッフ・店内・商品・その他の5分類</li>
+            <li>✅ カラーバッジでの分類表示</li>
+            <li>✅ 分類統計の自動更新</li>
+            <li>🚧 3パターン自動生成（次回実装）</li>
+        </ul>
+    </div>
+</body>
+</html>

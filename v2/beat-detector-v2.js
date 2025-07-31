@@ -47,6 +47,16 @@ class BeatDetector {
         this.telops = []; // テロップの配列
         this.telopIdCounter = 0;
         
+        // v2新機能: 素材分類システム
+        this.materialClassifications = []; // 各動画の分類情報
+        this.classificationStats = {
+            food: 0,
+            staff: 0,
+            store: 0,
+            product: 0,
+            other: 0
+        };
+        
         // 動画開始時間設定
         this.videoStartTimes = []; // 各動画の開始時間を保存
         
@@ -99,6 +109,14 @@ class BeatDetector {
         this.previewBtn = document.getElementById('previewBtn');
         this.editSummary = document.getElementById('editSummary');
         this.toggleSummaryBtn = document.getElementById('toggleSummaryBtn');
+        
+        // v2新機能: 素材分類関連要素
+        this.classificationStatsElement = document.getElementById('classificationStats');
+        this.foodCount = document.getElementById('foodCount');
+        this.staffCount = document.getElementById('staffCount');
+        this.storeCount = document.getElementById('storeCount');
+        this.productCount = document.getElementById('productCount');
+        this.otherCount = document.getElementById('otherCount');
         
         // 高度なテロップ関連要素
         this.newTelopText = document.getElementById('newTelopText');
@@ -444,6 +462,7 @@ class BeatDetector {
     displayVideoPreview(files) {
         this.videoList.innerHTML = '';
         this.videoStartTimes = []; // リセット
+        this.materialClassifications = []; // v2: 分類情報もリセット
         
         files.forEach((file, index) => {
             const videoItem = document.createElement('div');
@@ -486,17 +505,27 @@ class BeatDetector {
             filename.className = 'filename';
             filename.textContent = file.name;
             
+            // v2新機能: 素材分類セレクトボックス
+            const classificationSelect = this.createMaterialClassificationSelect(index);
+            
             // 動画コントロールを作成
             const controls = this.createVideoControls(video, index);
             
             videoItem.appendChild(video);
             videoItem.appendChild(filename);
+            videoItem.appendChild(classificationSelect);
             videoItem.appendChild(controls);
             this.videoList.appendChild(videoItem);
+            
+            // 初期分類を設定
+            this.materialClassifications[index] = 'other'; // デフォルトは「その他」
         });
         
         // 映像アップロードエリアのスタイルを更新
         this.updateVideoUploadArea(files.length);
+        
+        // 分類統計を更新
+        this.updateClassificationStats();
     }
 
     updateVideoUploadArea(count) {
@@ -3045,6 +3074,91 @@ class BeatDetector {
             this.toggleSummaryBtn.classList.remove('btn-secondary');
             this.toggleSummaryBtn.classList.add('btn-primary');
         }
+    }
+    
+    // v2新機能: 素材分類システム
+    createMaterialClassificationSelect(index) {
+        const container = document.createElement('div');
+        container.style.cssText = 'margin: 0.5rem 0;';
+        
+        const label = document.createElement('label');
+        label.style.cssText = 'display: block; font-size: 0.8rem; color: var(--secondary-text); margin-bottom: 0.3rem;';
+        label.textContent = '🏷️ 素材分類:';
+        
+        const select = document.createElement('select');
+        select.className = 'material-tag-select';
+        select.innerHTML = `
+            <option value="food">🍽️ フード（料理・食べ物）</option>
+            <option value="staff">👥 スタッフ（人物・接客）</option>
+            <option value="store">🏪 店内（内装・雰囲気）</option>
+            <option value="product">📦 商品（商品・サービス）</option>
+            <option value="other" selected>📎 その他</option>
+        `;
+        
+        // 分類変更時のイベントリスナー
+        select.addEventListener('change', (e) => {
+            this.updateMaterialClassification(index, e.target.value);
+        });
+        
+        // バッジ表示用のdiv
+        const badge = document.createElement('div');
+        badge.className = 'classification-badge badge-other';
+        badge.textContent = 'その他';
+        badge.id = `badge-${index}`;
+        
+        container.appendChild(label);
+        container.appendChild(select);
+        container.appendChild(badge);
+        
+        return container;
+    }
+    
+    updateMaterialClassification(index, classification) {
+        // 古い分類を削除
+        if (this.materialClassifications[index]) {
+            this.classificationStats[this.materialClassifications[index]]--;
+        }
+        
+        // 新しい分類を設定
+        this.materialClassifications[index] = classification;
+        this.classificationStats[classification]++;
+        
+        // バッジを更新
+        const badge = document.getElementById(`badge-${index}`);
+        if (badge) {
+            const classificationNames = {
+                food: 'フード',
+                staff: 'スタッフ',
+                store: '店内',
+                product: '商品',
+                other: 'その他'
+            };
+            
+            badge.textContent = classificationNames[classification];
+            badge.className = `classification-badge badge-${classification}`;
+        }
+        
+        // 統計を更新
+        this.updateClassificationStats();
+        
+        console.log(`📋 素材${index + 1}を「${classification}」に分類しました`);
+    }
+    
+    updateClassificationStats() {
+        // 統計表示を更新
+        if (this.foodCount) this.foodCount.textContent = this.classificationStats.food;
+        if (this.staffCount) this.staffCount.textContent = this.classificationStats.staff;
+        if (this.storeCount) this.storeCount.textContent = this.classificationStats.store;
+        if (this.productCount) this.productCount.textContent = this.classificationStats.product;
+        if (this.otherCount) this.otherCount.textContent = this.classificationStats.other;
+        
+        // 統計パネルの表示・非表示
+        const totalCount = Object.values(this.classificationStats).reduce((a, b) => a + b, 0);
+        if (this.classificationStatsElement && totalCount > 0) {
+            this.classificationStatsElement.style.display = 'block';
+        }
+        
+        console.log('📊 素材分類統計:', this.classificationStats);
     }
 }
 

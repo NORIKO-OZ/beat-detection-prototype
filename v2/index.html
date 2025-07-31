@@ -96,6 +96,44 @@
             box-shadow: var(--shadow);
         }
         
+        /* v2新機能: 素材分類UI */
+        .material-tag-select {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border);
+            border-radius: 0.25rem;
+            padding: 0.3rem 0.5rem;
+            color: var(--primary-text);
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            width: 100%;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+        
+        .material-tag-select:focus {
+            outline: none;
+            border-color: var(--accent-text);
+        }
+        
+        .material-tag-select:hover {
+            border-color: var(--accent-purple);
+        }
+        
+        .classification-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 500;
+            margin-top: 0.3rem;
+        }
+        
+        .badge-food { background: #ff6b6b; color: white; }
+        .badge-staff { background: #4ecdc4; color: white; }
+        .badge-store { background: #45b7d1; color: white; }
+        .badge-product { background: #96ceb4; color: white; }
+        .badge-other { background: #786fa6; color: white; }
+        
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--primary-bg);
@@ -677,6 +715,24 @@
 
         <div id="videoPreview" class="section" style="display: none;">
             <h3 style="color: var(--accent-text); margin: 0 0 1.5rem 0; font-weight: 600;">📹 選択された映像素材</h3>
+            
+            <!-- v2新機能: 素材分類システム -->
+            <div class="material-classification" style="background: var(--accent-bg); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border: 1px solid var(--border);">
+                <h4 style="margin: 0 0 1rem 0; color: var(--accent-text); font-size: 1rem;">🏷️ 素材分類 (v2新機能)</h4>
+                <p style="font-size: 0.9rem; color: var(--secondary-text); margin: 0 0 1rem 0;">
+                    各映像素材の種類を指定することで、用途に応じた最適な動画パターンを自動生成します。
+                </p>
+                <div class="classification-stats" id="classificationStats" style="display: none;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; font-size: 0.8rem;">
+                        <div><span id="foodCount">0</span> フード</div>
+                        <div><span id="staffCount">0</span> スタッフ</div>
+                        <div><span id="storeCount">0</span> 店内</div>
+                        <div><span id="productCount">0</span> 商品</div>
+                        <div><span id="otherCount">0</span> その他</div>
+                    </div>
+                </div>
+            </div>
+            
             <div id="videoList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;"></div>
         </div>
 
