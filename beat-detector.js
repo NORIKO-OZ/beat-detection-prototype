@@ -98,6 +98,7 @@ class BeatDetector {
         this.downloadBtn = document.getElementById('downloadBtn');
         this.previewBtn = document.getElementById('previewBtn');
         this.editSummary = document.getElementById('editSummary');
+        this.toggleSummaryBtn = document.getElementById('toggleSummaryBtn');
         
         // 高度なテロップ関連要素
         this.newTelopText = document.getElementById('newTelopText');
@@ -2452,6 +2453,14 @@ class BeatDetector {
 
         // 結果セクションを表示
         this.editResult.style.display = 'block';
+        
+        // 編集詳細ボタンの状態を初期化（非表示状態）
+        if (this.toggleSummaryBtn) {
+            this.toggleSummaryBtn.textContent = '📊 編集詳細を表示';
+            this.toggleSummaryBtn.classList.remove('btn-primary');
+            this.toggleSummaryBtn.classList.add('btn-secondary');
+        }
+        
         this.editResult.scrollIntoView({ behavior: 'smooth' });
     }
 
@@ -3016,6 +3025,26 @@ class BeatDetector {
         const minutes = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    toggleEditSummary() {
+        if (!this.editSummary || !this.toggleSummaryBtn) return;
+        
+        const isVisible = this.editSummary.style.display !== 'none';
+        
+        if (isVisible) {
+            // 非表示にする
+            this.editSummary.style.display = 'none';
+            this.toggleSummaryBtn.textContent = '📊 編集詳細を表示';
+            this.toggleSummaryBtn.classList.remove('btn-primary');
+            this.toggleSummaryBtn.classList.add('btn-secondary');
+        } else {
+            // 表示する
+            this.editSummary.style.display = 'block';
+            this.toggleSummaryBtn.textContent = '📊 編集詳細を非表示';
+            this.toggleSummaryBtn.classList.remove('btn-secondary');
+            this.toggleSummaryBtn.classList.add('btn-primary');
+        }
     }
 }
 

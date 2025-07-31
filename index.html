@@ -962,7 +962,10 @@
                     ▶️ プレビュー
                 </button>
             </div>
-            <div id="editSummary" style="background: var(--accent-bg); padding: 1.5rem; border-radius: 0.75rem; margin: 1.5rem 0; border: 1px solid var(--border);">
+            <button id="toggleSummaryBtn" class="btn-secondary" style="margin: 0.5rem 0; width: 100%;" onclick="beatDetector.toggleEditSummary()">
+                📊 編集詳細を表示
+            </button>
+            <div id="editSummary" style="background: var(--accent-bg); padding: 1.5rem; border-radius: 0.75rem; margin: 1.5rem 0; border: 1px solid var(--border); display: none;">
                 <!-- 編集サマリーがここに表示される -->
             </div>
         </div>
