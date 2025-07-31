@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>🎵 ビート検出プロトタイプ v2 - ビジネス版</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary-bg: #0f1419;
+            --secondary-bg: #1a1d29;
+            --accent-bg: #242738;
+            --hover-bg: #2a2d3e;
+            --primary-text: #e6e6e6;
+            --secondary-text: #a0a0a0;
+            --accent-text: #64ffda;
+            --accent-purple: #bb86fc;
+            --accent-blue: #03dac6;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --error: #ef4444;
+            --border: rgba(255, 255, 255, 0.1);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            /* iPhone Safari タッチ操作最適化 */
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* iPhone用レスポンシブデザイン */
+        @media screen and (max-width: 480px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .upload-area {
+                padding: 2rem 1rem;
+                margin-bottom: 1rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .btn {
+                padding: 0.8rem 1.5rem;
+                font-size: 0.9rem;
+                min-height: 44px; /* iOSタッチターゲット最小サイズ */
+            }
+            
+            .time-slider {
+                height: 6px; /* タッチしやすくするため太く */
+            }
+            
+            .video-item video {
+                width: 100%;
+                height: auto;
+                max-height: 200px;
+            }
+            
+            .video-controls {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .time-container {
+                width: 100%;
+            }
+            
+            .preview-btn {
+                width: 100%;
+                min-height: 44px;
+            }
+        }
+        
+        /* プレビューキャンバスのレスポンシブ対応 */
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            box-shadow: var(--shadow);
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--primary-bg);
+            color: var(--primary-text);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(ellipse at top right, rgba(187, 134, 252, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom left, rgba(3, 218, 198, 0.1) 0%, transparent 50%);
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 3rem;
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-text), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            margin-bottom: 3rem;
+            font-size: 1.1rem;
+            color: var(--secondary-text);
+            font-weight: 400;
+        }
+        .upload-area {
+            background: var(--secondary-bg);
+            border: 2px dashed var(--border);
+            border-radius: 1rem;
+            padding: 3rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upload-area::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--glass);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--accent-text);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        .upload-area:hover::before {
+            opacity: 1;
+        }
+        
+        .upload-area.dragover {
+            border-color: var(--success);
+            background: rgba(74, 222, 128, 0.1);
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+        
+        .upload-text {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        
+        .upload-subtext {
+            font-size: 0.9rem;
+            color: var(--secondary-text);
+        }
+        .results {
+            background: var(--secondary-bg);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-top: 2rem;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        .waveform {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            height: 100px;
+            position: relative;
+            overflow: hidden;
+        }
+        .beat-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #ff4444;
+            z-index: 10;
+        }
+        .onset-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #44ff44;
+            z-index: 5;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        
+        .info-card {
+            background: var(--accent-bg);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .info-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-text), var(--accent-purple));
+        }
+        
+        .info-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .info-card h3 {
+            margin: 0 0 0.75rem 0;
+            color: var(--accent-text);
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .info-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-text);
+            line-height: 1;
+        }
+        button {
+            background: linear-gradient(135deg, var(--accent-text), var(--accent-blue));
+            border: none;
+            color: var(--primary-bg);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin: 0.25rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            font-family: inherit;
+            letter-spacing: 0.025em;
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(100, 255, 218, 0.3);
+        }
+        
+        button:hover::before {
+            left: 100%;
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        button:disabled::before {
+            display: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--success), #22c55e);
+        }
+        
+        .btn-secondary {
+            background: var(--accent-bg);
+            color: var(--primary-text);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning), #f59e0b);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--error), #dc2626);
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin: 2rem 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+        .spinner {
+            border: 3px solid var(--border);
+            border-radius: 50%;
+            border-top: 3px solid var(--accent-text);
+            width: 2rem;
+            height: 2rem;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .beat-list {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .beat-time {
+            display: inline-block;
+            background: rgba(255, 68, 68, 0.2);
+            padding: 3px 8px;
+            margin: 2px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            border: 1px solid #ff4444;
+        }
+        .video-item {
+            background: var(--accent-bg);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid var(--border);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .video-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--glass);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .video-item:hover {
+            border-color: var(--accent-text);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        .video-item:hover::before {
+            opacity: 1;
+        }
+        
+        .video-item video {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .video-item .filename {
+            font-size: 0.9rem;
+            word-break: break-all;
+            color: var(--secondary-text);
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 0.5rem;
+        }
+        
+        .video-controls {
+            position: relative;
+            z-index: 1;
+            margin-top: 0.5rem;
+        }
+        
+        .time-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .time-slider {
+            flex: 1;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+        }
+        
+        .time-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-text);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .time-slider::-webkit-slider-thumb:hover {
+            background: var(--accent-purple);
+            transform: scale(1.2);
+        }
+        
+        .time-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--accent-text);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .time-display {
+            font-size: 0.8rem;
+            color: var(--secondary-text);
+            font-weight: 500;
+            min-width: 80px;
+        }
+        
+        .video-preview-controls {
+            display: flex;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-top: 0.5rem;
+        }
+        
+        .preview-btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            border-radius: 0.25rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--accent-bg);
+            color: var(--primary-text);
+            border: 1px solid var(--border);
+        }
+        
+        .preview-btn:hover {
+            background: var(--hover-bg);
+            border-color: var(--accent-text);
+        }
+        
+        .preview-btn.active {
+            background: var(--accent-text);
+            color: var(--primary-bg);
+        }
+        select, input[type="checkbox"] {
+            font-family: inherit;
+        }
+        
+        select {
+            background: var(--accent-bg);
+            color: var(--primary-text);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+        
+        select:focus {
+            border-color: var(--accent-text);
+            box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.1);
+        }
+        
+        select option {
+            background: var(--accent-bg);
+            color: var(--primary-text);
+        }
+        
+        input[type="checkbox"] {
+            width: 1.2rem;
+            height: 1.2rem;
+            accent-color: var(--accent-text);
+        }
+        
+        .section {
+            background: var(--secondary-bg);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        
+        .auto-edit-section {
+            background: var(--secondary-bg);
+            border: 1px solid var(--success);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            display: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .auto-edit-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--success), var(--accent-text));
+        }
+        .progress-bar {
+            width: 100%;
+            height: 0.5rem;
+            background: var(--accent-bg);
+            border-radius: 0.25rem;
+            overflow: hidden;
+            margin: 1rem 0;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), var(--accent-text));
+            width: 0%;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .waveform {
+            background: var(--accent-bg);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            height: 120px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        
+        .beat-list {
+            background: var(--accent-bg);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            max-height: 250px;
+            overflow-y: auto;
+            margin: 1rem 0;
+            border: 1px solid var(--border);
+        }
+        
+        .beat-time {
+            display: inline-block;
+            background: rgba(100, 255, 218, 0.2);
+            padding: 0.25rem 0.75rem;
+            margin: 0.125rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            border: 1px solid var(--accent-text);
+            color: var(--accent-text);
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 ビート検出プロトタイプ</h1>
+        <p class="subtitle">
+            音楽ファイルをアップロードして、ビート検出とテンポ解析をテストします
+        </p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">🎶</div>
+            <div class="upload-text">音楽ファイルをドロップまたはクリック</div>
+            <div class="upload-subtext">対応形式: MP3, WAV, M4A</div>
+            <input type="file" id="audioFile" accept="audio/mp3,audio/wav,audio/m4a,audio/aac,.mp3,.wav,.m4a,.aac" style="display: none;">
+        </div>
+
+        <div class="upload-area" id="videoUploadArea" style="display: none;">
+            <div class="upload-icon">🎬</div>
+            <div class="upload-text">映像ファイルを複数選択してドロップまたはクリック</div>
+            <div class="upload-subtext">対応形式: MP4, MOV, AVI (複数選択可能)</div>
+            <input type="file" id="videoFiles" accept="video/mp4,video/quicktime,video/mov,.mp4,.mov" multiple style="display: none;">
+        </div>
+
+        <div id="videoPreview" class="section" style="display: none;">
+            <h3 style="color: var(--accent-text); margin: 0 0 1.5rem 0; font-weight: 600;">📹 選択された映像素材</h3>
+            <div id="videoList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;"></div>
+        </div>
+
+        <div class="controls">
+            <button id="analyzeBtn" disabled>🔍 ビート解析開始</button>
+            <button id="playBtn" disabled>▶️ 再生</button>
+            <button id="pauseBtn" disabled>⏸️ 一時停止</button>
+            <button id="stopBtn" disabled>⏹️ 停止</button>
+            <button id="resetBtn" disabled>🔄 リセット</button>
+        </div>
+        
+        <div id="adjustmentControls" class="section" style="display: none; text-align: center;">
+            <h3 style="margin: 0 0 1.5rem 0; color: var(--accent-text); font-weight: 600;">⚙️ カット位置の手動調整</h3>
+            
+            <div style="margin: 1.5rem 0; padding: 1.5rem; background: var(--accent-bg); border-radius: 0.75rem; border: 1px solid var(--border);">
+                <div style="font-size: 1.1rem; margin-bottom: 1rem;">🎵 現在の再生位置: <span id="currentTimeDisplay" style="font-weight: bold; color: var(--success);">0:00.0</span></div>
+                <div style="margin: 1rem 0;">
+                    <button id="setCutPosition" class="btn-danger" style="font-size: 1.1rem; padding: 0.75rem 1.5rem;">
+                        ✂️ この位置をカット位置に設定
+                    </button>
+                </div>
+                <div style="font-size: 0.9rem; color: var(--secondary-text); margin-top: 0.5rem;">
+                    音楽を再生して、良いタイミングで⏸️一時停止→✂️ボタンの順で押してください
+                </div>
+            </div>
+            
+            <div style="margin: 1.5rem 0;">
+                <button id="resetAdjustment" class="btn-warning">🔄 自動検出位置に戻す</button>
+            </div>
+            
+            <div style="font-size: 0.9rem; color: var(--secondary-text); margin-top: 1rem; padding: 1rem; background: rgba(251, 191, 36, 0.1); border-radius: 0.5rem; border: 1px solid var(--warning);">
+                💡 <strong style="color: var(--warning);">使い方：</strong><br>
+                1. 音楽を▶️再生<br>
+                2. 良いカット位置で⏸️一時停止<br>
+                3. 「✂️ この位置をカット位置に設定」をクリック<br>
+                4. 新しいカット位置が反映されます
+            </div>
+        </div>
+
+        <div id="autoEditSection" class="auto-edit-section">
+            <h3 style="margin: 0 0 1.5rem 0; color: var(--success); font-weight: 600;">🎬 自動動画編集</h3>
+            <p style="margin: 0 0 1.5rem 0; color: var(--secondary-text);">
+                音楽のビートに合わせて映像素材を自動的に切り替える動画を生成します
+            </p>
+            
+            <div style="margin: 1.5rem 0; padding: 1.5rem; background: var(--accent-bg); border-radius: 0.75rem; border: 1px solid var(--border);">
+                <h4 style="margin: 0 0 1.5rem 0; color: var(--accent-text); font-weight: 600;">⚙️ 編集オプション</h4>
+                
+                <!-- 動画サイズ選択 -->
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary-text);">
+                        📱 動画サイズ・フォーマット
+                    </label>
+                    <select id="videoSizeSelect" style="width: 100%;">
+                        <option value="auto" selected>🔄 自動 (映像素材に合わせる)</option>
+                        <option value="vertical_hd">📱 縦型スマホ (720×1280) - TikTok/Stories</option>
+                        <option value="square_hd">🟨 正方形 (720×720) - Instagram投稿</option>
+                        <option value="horizontal_hd">🖥️ 横型HD (1280×720) - YouTube</option>
+                        <option value="vertical_fhd">📱 縦型高画質 (1080×1920) - 高品質</option>
+                        <option value="square_fhd">🟨 正方形高画質 (1080×1080) - 高品質</option>
+                        <option value="horizontal_fhd">🖥️ 横型フルHD (1920×1080) - 高品質</option>
+                    </select>
+                    <div style="font-size: 0.8rem; color: var(--secondary-text); margin-top: 0.5rem;">
+                        スマホアプリに最適化されたサイズを選択できます
+                    </div>
+                </div>
+                
+                <!-- フレームレート選択 -->
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary-text);">
+                        🎬 フレームレート (FPS)
+                    </label>
+                    <select id="framerateSelect" style="width: 100%;">
+                        <option value="24">🎞️ 24fps - 映画品質（シネマティック）</option>
+                        <option value="25">📺 25fps - ヨーロッパ標準（PAL）</option>
+                        <option value="30" selected>📱 30fps - 標準品質（SNS推奨）</option>
+                    </select>
+                    <div style="font-size: 0.8rem; color: var(--secondary-text); margin-top: 0.5rem;">
+                        高いFPSほど滑らかですが、ファイルサイズが大きくなります
+                    </div>
+                </div>
+                
+                <!-- 高度なテロップ設定 -->
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary-text);">
+                        💬 テロップ管理システム
+                    </label>
+                    
+                    <!-- テロップ追加フォーム -->
+                    <div style="background: var(--hover-bg); padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--border); margin-bottom: 1rem;">
+                        <h4 style="margin: 0 0 1rem 0; color: var(--accent-text); font-weight: 600;">➕ 新しいテロップを追加</h4>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--primary-text);">
+                                テキスト内容
+                            </label>
+                            <input type="text" id="newTelopText" placeholder="表示したいテキストを入力..." style="width: 100%; padding: 0.5rem; border-radius: 0.25rem; border: 1px solid var(--border); background: var(--accent-bg); color: var(--primary-text); font-size: 0.9rem;">
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--primary-text);">
+                                    開始時間 (秒)
+                                </label>
+                                <input type="number" id="newTelopStartTime" min="0" step="0.01" value="0" style="width: 100%; padding: 0.5rem; border-radius: 0.25rem; border: 1px solid var(--border); background: var(--accent-bg); color: var(--primary-text); font-size: 0.9rem;">
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--primary-text);">
+                                    終了時間 (秒)
+                                </label>
+                                <input type="number" id="newTelopEndTime" min="0" step="0.01" value="5" style="width: 100%; padding: 0.5rem; border-radius: 0.25rem; border: 1px solid var(--border); background: var(--accent-bg); color: var(--primary-text); font-size: 0.9rem;">
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--primary-text);">
+                                    位置 (横)
+                                </label>
+                                <select id="newTelopPositionX" style="width: 100%;">
+                                    <option value="left">左寄せ</option>
+                                    <option value="center" selected>中央</option>
+                                    <option value="right">右寄せ</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--primary-text);">
+                                    位置 (縦)
+                                </label>
+                                <select id="newTelopPositionY" style="width: 100%;">
+                                    <option value="top">上部</option>
+                                    <option value="middle">中央</option>
+                                    <option value="bottom" selected>下部</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--primary-text);">
+                                    フォント
+                                </label>
+                                <select id="newTelopFont" style="width: 100%;">
+                                    <option value="Arial" selected>Arial（標準）</option>
+                                    <option value="Impact">Impact（太字）</option>
+                                    <option value="Times New Roman">Times New Roman（明朝）</option>
+                                    <option value="Comic Sans MS">Comic Sans MS（カジュアル）</option>
+                                    <option value="Courier New">Courier New（等幅）</option>
+                                    <option value="Georgia">Georgia（読みやすい）</option>
+                                    <option value="Verdana">Verdana（ウェブ向け）</option>
+                                    <option value="Trebuchet MS">Trebuchet MS（モダン）</option>
+                                    <option value="Palatino">Palatino（エレガント）</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--primary-text);">
+                                    フォントサイズ
+                                </label>
+                                <select id="newTelopFontSize" style="width: 100%;">
+                                    <option value="small">小 (24px)</option>
+                                    <option value="medium" selected>中 (36px)</option>
+                                    <option value="large">大 (48px)</option>
+                                    <option value="xlarge">特大 (60px)</option>
+                                    <option value="xxlarge">超特大 (80px)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--primary-text);">
+                                    文字色
+                                </label>
+                                <select id="newTelopColor" style="width: 100%;">
+                                    <option value="white" selected>白</option>
+                                    <option value="black">黒</option>
+                                    <option value="red">赤</option>
+                                    <option value="blue">青</option>
+                                    <option value="yellow">黄</option>
+                                    <option value="green">緑</option>
+                                    <option value="orange">オレンジ</option>
+                                    <option value="purple">紫</option>
+                                    <option value="pink">ピンク</option>
+                                    <option value="cyan">シアン</option>
+                                    <option value="gradient-red">グラデーション（赤→黄）</option>
+                                    <option value="gradient-blue">グラデーション（青→緑）</option>
+                                    <option value="gradient-rainbow">レインボー</option>
+                                    <option value="custom">カスタム色</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--primary-text);">
+                                    カスタム色 (HEX)
+                                </label>
+                                <input type="color" id="newTelopCustomColor" value="#ffffff" style="width: 100%; padding: 0.25rem; border-radius: 0.25rem; border: 1px solid var(--border); background: var(--accent-bg); height: 2.5rem;">
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <label style="display: flex; align-items: center; font-size: 0.9rem; cursor: pointer; color: var(--primary-text);">
+                                    <input type="checkbox" id="newTelopOutline" checked style="margin-right: 0.5rem;">
+                                    <span>輪郭線</span>
+                                </label>
+                            </div>
+                            <div>
+                                <label style="display: flex; align-items: center; font-size: 0.9rem; cursor: pointer; color: var(--primary-text);">
+                                    <input type="checkbox" id="newTelopBackground" style="margin-right: 0.5rem;">
+                                    <span>背景</span>
+                                </label>
+                            </div>
+                            <div>
+                                <label style="display: flex; align-items: center; font-size: 0.9rem; cursor: pointer; color: var(--primary-text);">
+                                    <input type="checkbox" id="newTelopBold" checked style="margin-right: 0.5rem;">
+                                    <span>太字</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                            <button id="addTelop" class="btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+                                ➕ テロップを追加
+                            </button>
+                            <button id="previewAllTelops" class="btn-secondary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+                                👁️ 全体プレビュー
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- テロップ一覧 -->
+                    <div style="background: var(--accent-bg); padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--border);">
+                        <h4 style="margin: 0 0 1rem 0; color: var(--accent-text); font-weight: 600;">📋 登録されたテロップ</h4>
+                        <div id="telopList" style="min-height: 50px;">
+                            <div style="text-align: center; color: var(--secondary-text); padding: 1rem;">
+                                まだテロップが登録されていません
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="font-size: 0.8rem; color: var(--secondary-text); margin-top: 0.5rem;">
+                        💡 複数のテロップを時間指定で表示できます。開始・終了時間を設定して動的な字幕を作成しましょう
+                    </div>
+                </div>
+                
+                <!-- 音楽再生設定 -->
+                <div>
+                    <label style="display: flex; align-items: center; font-size: 1rem; cursor: pointer; color: var(--primary-text);">
+                        <input type="checkbox" id="playMusicDuringEdit" checked style="margin-right: 0.5rem;">
+                        <span>🎵 動画生成中に音楽を再生する</span>
+                    </label>
+                    <div style="font-size: 0.9rem; color: var(--secondary-text); margin-top: 0.5rem; padding-left: 1.75rem;">
+                        チェックを外すと、動画生成中は音楽が流れません（処理が軽くなります）<br>
+                        <strong style="color: var(--warning);">※ プレビュー再生時は常に音楽が流れます</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
+                <button id="startAutoEdit" class="btn-primary" style="font-size: 1.1rem; padding: 0.9rem 2rem;">
+                    🚀 自動編集を開始
+                </button>
+            </div>
+            <div id="editProgress" style="display: none; margin-top: 1.5rem;">
+                <div style="text-align: center; margin-bottom: 1rem;">
+                    <span id="progressText" style="color: var(--primary-text); font-weight: 500;">処理中...</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="editResult" class="section" style="display: none; background: rgba(74, 222, 128, 0.1); border: 2px solid var(--success);">
+            <h3 style="margin: 0 0 1.5rem 0; color: var(--success); font-weight: 600;">🎉 編集完了！</h3>
+            <div id="resultVideo" style="text-align: center; margin: 1.5rem 0;">
+                <!-- 生成された動画がここに表示される -->
+            </div>
+            <div style="text-align: center; margin: 1.5rem 0;">
+                <button id="downloadBtn" style="background: linear-gradient(135deg, var(--accent-blue), #1976D2); margin: 0.25rem;">
+                    💾 ダウンロード
+                </button>
+                <button id="previewBtn" class="btn-warning" style="margin: 0.25rem;">
+                    ▶️ プレビュー
+                </button>
+            </div>
+            <button id="toggleSummaryBtn" class="btn-secondary" style="margin: 0.5rem 0; width: 100%;" onclick="beatDetector.toggleEditSummary()">
+                📊 編集詳細を表示
+            </button>
+            <div id="editSummary" style="background: var(--accent-bg); padding: 1.5rem; border-radius: 0.75rem; margin: 1.5rem 0; border: 1px solid var(--border); display: none;">
+                <!-- 編集サマリーがここに表示される -->
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <div style="color: var(--primary-text); font-weight: 500;">音楽を解析中...</div>
+        </div>
+
+        <div id="results" class="section" style="display: none;">
+            <h2 style="color: var(--accent-text); font-weight: 600; margin-bottom: 2rem;">🎯 解析結果</h2>
+            
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>BPM</h3>
+                    <div class="value" id="bpmValue">-</div>
+                </div>
+                <div class="info-card">
+                    <h3>ビート数</h3>
+                    <div class="value" id="beatCount">-</div>
+                </div>
+                <div class="info-card">
+                    <h3>オンセット数</h3>
+                    <div class="value" id="onsetCount">-</div>
+                </div>
+                <div class="info-card">
+                    <h3>曲の長さ</h3>
+                    <div class="value" id="duration">-</div>
+                </div>
+                <div class="info-card">
+                    <h3>拍子</h3>
+                    <div class="value" id="timeSignature">-</div>
+                </div>
+            </div>
+
+            <div class="waveform" id="waveform">
+                <div style="text-align: center; padding: 2rem; color: var(--secondary-text);">
+                    波形とビート位置がここに表示されます
+                </div>
+            </div>
+
+            <div>
+                <h3 style="color: var(--accent-text); font-weight: 600; margin-bottom: 1rem;">🥁 検出されたビート（秒）</h3>
+                <div class="beat-list" id="beatList"></div>
+            </div>
+
+            <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(251, 191, 36, 0.1); border-radius: 0.75rem; border: 1px solid var(--warning);">
+                <h4 style="margin: 0 0 1rem 0; color: var(--warning); font-weight: 600;">💡 SNS動画編集への応用</h4>
+                <ul style="margin: 0; padding-left: 1.25rem; color: var(--secondary-text);">
+                    <li><strong style="color: var(--primary-text);">小節の1拍目でカット</strong>：最も自然な映像切り替えポイント</li>
+                    <li><strong style="color: var(--primary-text);">4/4拍子対応</strong>：ポップス・ロック・EDM等に最適</li>
+                    <li><strong style="color: var(--primary-text);">TikTok・ショート動画</strong>：音楽と完全同期した編集</li>
+                    <li><strong style="color: var(--primary-text);">3-5本の動画自動生成</strong>：効率的なSNS投稿</li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem; text-align: center; font-size: 0.9rem; color: var(--secondary-text);">
+            <p>🚀 技術検証用プロトタイプ - SNS動画自動編集ツール開発</p>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/tone@14.8.49/build/Tone.js"></script>
+    <script src="beat-detector-v2.js"></script>
+</body>
+</html>
