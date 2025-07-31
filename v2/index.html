@@ -134,6 +134,21 @@
         .badge-product { background: #96ceb4; color: white; }
         .badge-other { background: #786fa6; color: white; }
         
+        /* v2新機能: パターン選択UI */
+        .pattern-option input[type="radio"] {
+            display: none;
+        }
+        
+        .pattern-option input[type="radio"]:checked + label {
+            border-color: var(--accent-text);
+            background: rgba(100, 255, 218, 0.1);
+        }
+        
+        .pattern-option label:hover {
+            border-color: var(--accent-purple);
+            background: rgba(187, 134, 252, 0.05);
+        }
+        
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--primary-bg);
@@ -990,10 +1005,65 @@
                 </div>
             </div>
             
+            <!-- v2新機能: 3パターン選択 -->
+            <div class="pattern-selection" style="background: var(--accent-bg); padding: 1.5rem; border-radius: 0.75rem; margin: 1.5rem 0; border: 1px solid var(--border);">
+                <h4 style="margin: 0 0 1rem 0; color: var(--accent-text); font-size: 1rem;">🎨 動画パターン選択 (v2新機能)</h4>
+                <p style="font-size: 0.9rem; color: var(--secondary-text); margin: 0 0 1.5rem 0;">
+                    分類された素材を使って、異なる重点の動画を自動生成します。
+                </p>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div class="pattern-option">
+                        <input type="radio" id="patternA" name="videoPattern" value="food-focused" checked>
+                        <label for="patternA" style="display: block; padding: 1rem; border: 2px solid var(--border); border-radius: 0.5rem; cursor: pointer; transition: all 0.3s ease;">
+                            <div style="font-weight: 600; color: var(--accent-text); margin-bottom: 0.5rem;">🍽️ フード重視</div>
+                            <div style="font-size: 0.8rem; color: var(--secondary-text);">
+                                フード50% • スタッフ30% • 店内20%<br>
+                                <em>料理を前面に押し出したい場合</em>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="pattern-option">
+                        <input type="radio" id="patternB" name="videoPattern" value="staff-focused">
+                        <label for="patternB" style="display: block; padding: 1rem; border: 2px solid var(--border); border-radius: 0.5rem; cursor: pointer; transition: all 0.3s ease;">
+                            <div style="font-weight: 600; color: var(--accent-text); margin-bottom: 0.5rem;">👥 スタッフ重視</div>
+                            <div style="font-size: 0.8rem; color: var(--secondary-text);">
+                                スタッフ40% • フード35% • 店内25%<br>
+                                <em>人の温かさを伝えたい場合</em>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="pattern-option">
+                        <input type="radio" id="patternC" name="videoPattern" value="atmosphere-focused">
+                        <label for="patternC" style="display: block; padding: 1rem; border: 2px solid var(--border); border-radius: 0.5rem; cursor: pointer; transition: all 0.3s ease;">
+                            <div style="font-weight: 600; color: var(--accent-text); margin-bottom: 0.5rem;">🏪 雰囲気重視</div>
+                            <div style="font-size: 0.8rem; color: var(--secondary-text);">
+                                店内35% • フード35% • スタッフ30%<br>
+                                <em>お店の雰囲気を重視したい場合</em>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1rem; padding: 1rem; background: rgba(100, 255, 218, 0.1); border-radius: 0.5rem; border: 1px solid var(--accent-text);">
+                    <div style="font-size: 0.9rem; color: var(--accent-text); font-weight: 500;">📊 現在の素材分類:</div>
+                    <div id="patternPreview" style="font-size: 0.8rem; color: var(--secondary-text); margin-top: 0.5rem;">
+                        素材をアップロード・分類すると、各パターンでの使用比率が表示されます
+                    </div>
+                </div>
+            </div>
+            
             <div style="text-align: center;">
                 <button id="startAutoEdit" class="btn-primary" style="font-size: 1.1rem; padding: 0.9rem 2rem;">
-                    🚀 自動編集を開始
+                    🚀 選択パターンで動画生成
                 </button>
+                <div style="margin-top: 0.5rem;">
+                    <button id="generateAllPatterns" class="btn-secondary" style="font-size: 0.9rem; padding: 0.6rem 1.5rem;">
+                        🎬 全3パターンを一括生成
+                    </button>
+                </div>
             </div>
             <div id="editProgress" style="display: none; margin-top: 1.5rem;">
                 <div style="text-align: center; margin-bottom: 1rem;">

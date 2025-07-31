@@ -118,6 +118,10 @@ class BeatDetector {
         this.productCount = document.getElementById('productCount');
         this.otherCount = document.getElementById('otherCount');
         
+        // v2新機能: パターン生成関連要素
+        this.generateAllPatternsBtn = document.getElementById('generateAllPatterns');
+        this.patternPreview = document.getElementById('patternPreview');
+        
         // 高度なテロップ関連要素
         this.newTelopText = document.getElementById('newTelopText');
         this.newTelopStartTime = document.getElementById('newTelopStartTime');
@@ -168,6 +172,18 @@ class BeatDetector {
         
         // 自動編集
         this.startAutoEditBtn.addEventListener('click', this.startAutoEdit.bind(this));
+        
+        // v2新機能: パターン生成
+        if (this.generateAllPatternsBtn) {
+            this.generateAllPatternsBtn.addEventListener('click', this.generateAllPatterns.bind(this));
+        }
+        
+        // パターン選択の変更を監視
+        document.addEventListener('change', (e) => {
+            if (e.target.name === 'videoPattern') {
+                this.updatePatternPreview();
+            }
+        });
         
         // 音楽再生オプションの変更を監視
         if (this.playMusicDuringEditCheckbox) {
@@ -526,6 +542,8 @@ class BeatDetector {
         
         // 分類統計を更新
         this.updateClassificationStats();
+        // パターンプレビューも更新
+        this.updatePatternPreview();
     }
 
     updateVideoUploadArea(count) {
@@ -1561,6 +1579,9 @@ class BeatDetector {
             alert('先に音楽のビート解析を実行してください');
             return;
         }
+        
+        // v2新機能: 選択されたパターンを取得
+        const selectedPattern = document.querySelector('input[name="videoPattern"]:checked')?.value || 'food-focused';
 
         try {
             // 音楽再生設定を保存
@@ -1585,9 +1606,11 @@ class BeatDetector {
             const cutPositions = this.calculateCutPositions();
             console.log('カット位置:', cutPositions.length, '個');
             console.log('調整後のカット位置:', cutPositions.slice(0, 3).map(t => t.toFixed(2) + 's').join(', '), '...');
+            console.log('🎨 選択パターン:', selectedPattern);
 
-            // 映像編集計画を作成
-            const editPlan = this.createEditPlan(cutPositions);
+            // v2新機能: パターンに基づいた映像編集計画を作成
+            const basePlan = this.createEditPlan(cutPositions);
+            const editPlan = selectedPattern !== 'food-focused' ? this.adjustPlanByPattern(basePlan, selectedPattern) : basePlan;
             console.log('編集計画:', editPlan.length, 'セグメント');
 
             this.updateProgress(10, 'Canvas準備中...');
@@ -3140,6 +3163,8 @@ class BeatDetector {
         
         // 統計を更新
         this.updateClassificationStats();
+        // パターンプレビューも更新
+        this.updatePatternPreview();
         
         console.log(`📋 素材${index + 1}を「${classification}」に分類しました`);
     }
@@ -3159,6 +3184,200 @@ class BeatDetector {
         }
         
         console.log('📊 素材分類統計:', this.classificationStats);
+    }
+    
+    // v2新機能: パターンプレビュー更新
+    updatePatternPreview() {
+        if (!this.patternPreview) return;
+        
+        const stats = this.classificationStats;
+        const total = Object.values(stats).reduce((a, b) => a + b, 0);
+        
+        if (total === 0) {
+            this.patternPreview.innerHTML = '素材をアップロード・分類すると、各パターンでの使用比率が表示されます';
+            return;
+        }
+        
+        // 現在の分類状況を表示
+        const currentStats = `
+            <div style="margin-bottom: 0.5rem;">
+                <strong>アップロード済み素材:</strong> 
+                フード${stats.food}個 • スタッフ${stats.staff}個 • 店内${stats.store}個 • 商品${stats.product}個 • その他${stats.other}個
+            </div>
+            <div style="font-size: 0.8rem;">
+                <strong>🍽️ フード重視:</strong> ${this.calculatePatternRatio('food-focused')}<br>
+                <strong>👥 スタッフ重視:</strong> ${this.calculatePatternRatio('staff-focused')}<br>
+                <strong>🏪 雰囲気重視:</strong> ${this.calculatePatternRatio('atmosphere-focused')}
+            </div>
+        `;
+        
+        this.patternPreview.innerHTML = currentStats;
+    }
+    
+    // パターンごとの使用比率を計算
+    calculatePatternRatio(patternType) {
+        const stats = this.classificationStats;
+        const total = Object.values(stats).reduce((a, b) => a + b, 0);
+        
+        if (total === 0) return '素材が不足しています';
+        
+        const patterns = {
+            'food-focused': { food: 50, staff: 30, store: 20, product: 0, other: 0 },
+            'staff-focused': { food: 35, staff: 40, store: 25, product: 0, other: 0 },
+            'atmosphere-focused': { food: 35, staff: 30, store: 35, product: 0, other: 0 }
+        };
+        
+        const pattern = patterns[patternType];
+        if (!pattern) return '不明なパターン';
+        
+        let description = '';
+        Object.keys(pattern).forEach(type => {
+            if (pattern[type] > 0) {
+                const available = stats[type] || 0;
+                const needed = Math.ceil((pattern[type] / 100) * 10); // 10秒動画として計算
+                const status = available >= needed ? '✅' : '⚠️';
+                const typeName = { food: 'フード', staff: 'スタッフ', store: '店内', product: '商品', other: 'その他' }[type];
+                description += `${status}${typeName}${pattern[type]}%(${available}/${needed}) `;
+            }
+        });
+        
+        return description.trim();
+    }
+    
+    // 全パターン一括生成
+    async generateAllPatterns() {
+        if (!this.canGenerateVideo()) {
+            alert('動画生成の準備ができていません。音楽と映像をアップロードしてください。');
+            return;
+        }
+        
+        const originalButtonText = this.generateAllPatternsBtn.textContent;
+        this.generateAllPatternsBtn.disabled = true;
+        this.generateAllPatternsBtn.textContent = '🎬 全パターン生成中...';
+        
+        try {
+            console.log('🎬 全3パターンの一括生成を開始');
+            
+            const patterns = ['food-focused', 'staff-focused', 'atmosphere-focused'];
+            const results = [];
+            
+            for (let i = 0; i < patterns.length; i++) {
+                const pattern = patterns[i];
+                const patternName = {
+                    'food-focused': 'フード重視',
+                    'staff-focused': 'スタッフ重視', 
+                    'atmosphere-focused': '雰囲気重視'
+                }[pattern];
+                
+                this.updateProgress((i * 33), `パターン${i + 1}/3: ${patternName}を生成中...`);
+                
+                // パターンに基づいた編集計画を生成
+                const editPlan = this.generatePatternBasedEditPlan(pattern);
+                const videoBlob = await this.generateActualVideo(editPlan);
+                
+                results.push({
+                    pattern: pattern,
+                    name: patternName,
+                    blob: videoBlob,
+                    plan: editPlan
+                });
+                
+                console.log(`✅ ${patternName}パターン完成`);
+            }
+            
+            this.updateProgress(100, '全パターン生成完了！');
+            
+            // 結果を表示
+            this.displayMultiplePatternResults(results);
+            
+        } catch (error) {
+            console.error('全パターン生成エラー:', error);
+            alert('全パターン生成中にエラーが発生しました: ' + error.message);
+        } finally {
+            this.generateAllPatternsBtn.disabled = false;
+            this.generateAllPatternsBtn.textContent = originalButtonText;
+        }
+    }
+    
+    // パターンに基づいた編集計画を生成
+    generatePatternBasedEditPlan(patternType) {
+        console.log(`📋 ${patternType}パターンの編集計画を生成中`);
+        
+        // 基本的な編集計画を取得
+        const basePlan = this.calculateCutPositions();
+        
+        // パターンに応じて素材の使用比率を調整
+        const adjustedPlan = this.adjustPlanByPattern(basePlan, patternType);
+        
+        console.log(`📊 ${patternType}パターン編集計画:`, adjustedPlan);
+        return adjustedPlan;
+    }
+    
+    // パターンに応じた編集計画調整
+    adjustPlanByPattern(basePlan, patternType) {
+        // 各分類の素材インデックスを取得
+        const materialsByType = this.groupMaterialsByClassification();
+        
+        const patterns = {
+            'food-focused': { food: 0.5, staff: 0.3, store: 0.2 },
+            'staff-focused': { food: 0.35, staff: 0.4, store: 0.25 },
+            'atmosphere-focused': { food: 0.35, staff: 0.3, store: 0.35 }
+        };
+        
+        const targetRatio = patterns[patternType];
+        if (!targetRatio) return basePlan;
+        
+        // 計画を調整（簡易版：既存の計画の素材選択を変更）
+        const adjustedPlan = basePlan.map((segment, index) => {
+            const adjustedSegment = { ...segment };
+            
+            // パターンに基づいて優先的に使用する素材タイプを決定
+            const priorityTypes = Object.keys(targetRatio).sort((a, b) => targetRatio[b] - targetRatio[a]);
+            
+            // 利用可能な素材から選択
+            for (const type of priorityTypes) {
+                if (materialsByType[type] && materialsByType[type].length > 0) {
+                    const availableMaterials = materialsByType[type];
+                    adjustedSegment.videoIndex = availableMaterials[index % availableMaterials.length];
+                    break;
+                }
+            }
+            
+            return adjustedSegment;
+        });
+        
+        return adjustedPlan;
+    }
+    
+    // 分類別に素材をグループ化
+    groupMaterialsByClassification() {
+        const groups = { food: [], staff: [], store: [], product: [], other: [] };
+        
+        this.materialClassifications.forEach((classification, index) => {
+            if (groups[classification]) {
+                groups[classification].push(index);
+            }
+        });
+        
+        return groups;
+    }
+    
+    // 複数パターンの結果表示
+    displayMultiplePatternResults(results) {
+        // 既存の結果表示を拡張
+        this.displayEditResult(results[0].plan); // 最初のパターンを基本表示
+        
+        // 追加のパターン選択UI要素があれば更新
+        console.log('🎬 全パターン生成完了:', results.map(r => r.name));
+        
+        // 最初のパターンを表示用に設定
+        this.generatedVideoBlob = results[0].blob;
+        this.isVideoGenerated = true;
+    }
+    
+    // 動画生成可能かチェック
+    canGenerateVideo() {
+        return this.audioBuffer && this.videoElements.length > 0 && this.beats.length > 0;
     }
 }
 
